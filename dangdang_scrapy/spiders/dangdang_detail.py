@@ -1,8 +1,9 @@
 import os
+import re
 import scrapy
 from dotenv import load_dotenv
 from dangdang_scrapy.db import get_engine
-from dangdang_scrapy.parsers import parse_detail_rating
+from dangdang_scrapy.parsers import parse_detail_rating, parse_isbn
 from dangdang_scrapy.session import get_user_data_dir
 from sqlalchemy import text
 
@@ -51,7 +52,8 @@ class DangdangDetailSpider(scrapy.Spider):
         sql = """SELECT id, detail_url FROM books
                  WHERE detail_url LIKE '%product.dangdang.com%'
                    AND (rating IS NULL OR rating = 0
-                        OR rating_people IS NULL OR rating_people = 0)
+                        OR rating_people IS NULL OR rating_people = 0
+                        OR isbn IS NULL OR isbn = '')
                  ORDER BY id"""
         with self.engine.connect() as conn:
             return [(row[0], row[1]) for row in conn.execute(text(sql))]
@@ -61,7 +63,10 @@ class DangdangDetailSpider(scrapy.Spider):
         rating, people = parse_detail_rating(response.text)
         if rating is None and people is None:
             self.no_rating += 1
-        self._batch.append((bid, rating, people))
+        isbn = parse_isbn(response.text)
+        l1_name = response.css("#detail-category-path a:first-child::text").get("").strip() or None
+        l2_name = response.css("#detail-category-path a:nth-child(3)::text").get("").strip() or None
+        self._batch.append((bid, rating, people, isbn, l1_name, l2_name))
         if len(self._batch) >= 100:
             self._flush()
 
@@ -74,10 +79,15 @@ class DangdangDetailSpider(scrapy.Spider):
         if not self._batch:
             return
         with self.engine.begin() as conn:
-            for bid, rating, people in self._batch:
+            for bid, rating, people, isbn, l1_name, l2_name in self._batch:
                 conn.execute(
-                    text("UPDATE books SET rating=:r, rating_people=:p WHERE id=:id"),
-                    {"r": rating, "p": people, "id": bid},
+                    text("""UPDATE books SET
+                        rating=:r, rating_people=:p,
+                        isbn=COALESCE(:isbn, books.isbn),
+                        category_l1_name=COALESCE(:l1, books.category_l1_name),
+                        category_l2_name=COALESCE(:l2, books.category_l2_name)
+                    WHERE id=:id"""),
+                    {"r": rating, "p": people, "isbn": isbn, "l1": l1_name, "l2": l2_name, "id": bid},
                 )
         self.updated += len(self._batch)
         self._batch = []

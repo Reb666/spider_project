@@ -11,7 +11,10 @@ class BookCleaningPipeline:
         item["rating"] = parse_rating_from_style(item.get("rating")) if isinstance(item.get("rating"), str) else item.get("rating")
         item["sales"] = parse_int(item.get("sales"))
         item["rating_people"] = parse_int(item.get("rating_people"))
-        for field in ("name", "author", "publisher"):
+        for field in ("name", "author", "publisher", "isbn"):
+            if item.get(field):
+                item[field] = item[field].strip()
+        for field in ("category_l1_name", "category_l2_name"):
             if item.get(field):
                 item[field] = item[field].strip()
         return item

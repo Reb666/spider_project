@@ -1,6 +1,6 @@
 import pytest, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from dangdang_scrapy.parsers import parse_price, parse_rating_from_style, parse_review_count, parse_detail_rating
+from dangdang_scrapy.parsers import parse_price, parse_rating_from_style, parse_review_count, parse_detail_rating, parse_isbn
 
 
 class TestParsePrice:
@@ -63,3 +63,20 @@ class TestParseDetailRating:
         r, p = parse_detail_rating(html)
         assert r == 0.0
         assert p == 0
+
+
+class TestParseIsbn:
+    def test_normal_13_digit(self):
+        assert parse_isbn("国际标准书号ISBN：9787572614736") == "9787572614736"
+
+    def test_colon_alternative(self):
+        assert parse_isbn("国际标准书号ISBN:9787572614736") == "9787572614736"
+
+    def test_10_digit(self):
+        assert parse_isbn("国际标准书号ISBN：7532767180") == "7532767180"
+
+    def test_none(self):
+        assert parse_isbn("<html>no isbn</html>") is None
+
+    def test_empty(self):
+        assert parse_isbn("") is None

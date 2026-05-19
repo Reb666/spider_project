@@ -6,6 +6,7 @@ INT_RE = re.compile(r"\d+")
 RATING_STYLE_RE = re.compile(r"width\s*:\s*([\d.]+)%", re.IGNORECASE)
 DETAIL_RATING_RE = re.compile(r'<span class="star"[^>]*style="[^"]*width:\s*([\d.]+)%')
 DETAIL_PEOPLE_RE = re.compile(r'id="comm_num_down"[^>]*>(\d+)')
+ISBN_RE = re.compile(r"国际标准书号ISBN[：:](\d{13}|\d{10})")
 
 
 def parse_price(text: object) -> Optional[float]:
@@ -39,3 +40,8 @@ def parse_detail_rating(html: str) -> Tuple[Optional[float], Optional[int]]:
     m = DETAIL_PEOPLE_RE.search(html)
     people = int(m.group(1)) if m else None
     return rating, people
+
+
+def parse_isbn(html: str) -> Optional[str]:
+    m = ISBN_RE.search(html)
+    return m.group(1) if m else None
