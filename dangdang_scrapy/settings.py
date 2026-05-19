@@ -37,6 +37,7 @@ if USE_PLAYWRIGHT:
 
 DOWNLOADER_MIDDLEWARES = {
     "dangdang_scrapy.middlewares.RandomUserAgentMiddleware": 400,
+    "dangdang_scrapy.middlewares.SessionMiddleware": 650,
 }
 
 ITEM_PIPELINES = {

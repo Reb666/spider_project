@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse, urlunparse
 from dangdang_scrapy.items import BookItem
 from dangdang_scrapy.parsers import parse_price, parse_rating_from_style, parse_review_count
+from dangdang_scrapy.session import get_user_data_dir
 
 load_dotenv()
 USE_PW = os.environ.get("DANGDANG_USE_PLAYWRIGHT", "").lower() in ("1", "true", "yes")
@@ -34,6 +35,9 @@ def _request_meta():
     if USE_PW:
         from scrapy_playwright.page import PageMethod
         meta["playwright"] = True
+        meta["playwright_context_kwargs"] = {
+            "user_data_dir": str(get_user_data_dir()),
+        }
         meta["playwright_page_methods"] = [
             PageMethod(
                 "wait_for_selector",

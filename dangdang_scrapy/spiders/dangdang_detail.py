@@ -3,6 +3,7 @@ import scrapy
 from dotenv import load_dotenv
 from dangdang_scrapy.db import get_engine
 from dangdang_scrapy.parsers import parse_detail_rating
+from dangdang_scrapy.session import get_user_data_dir
 from sqlalchemy import text
 
 load_dotenv()
@@ -37,6 +38,9 @@ class DangdangDetailSpider(scrapy.Spider):
             if USE_PW:
                 from scrapy_playwright.page import PageMethod
                 meta["playwright"] = True
+                meta["playwright_context_kwargs"] = {
+                    "user_data_dir": str(get_user_data_dir()),
+                }
                 meta["playwright_page_methods"] = [
                     PageMethod("wait_for_selector", "#comm_num_down, span.star", timeout=5000),
                     PageMethod("wait_for_timeout", 500),

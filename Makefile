@@ -25,7 +25,7 @@ define wait_pg
 	@sleep 1
 endef
 
-.PHONY: setup crawl detail export analyze verify-fast verify-e2e quality test-full reset-db
+.PHONY: setup login crawl detail export analyze verify-fast verify-e2e quality test-full reset-db
 
 setup:
 	$(PIP) install -r requirements.txt
@@ -36,6 +36,7 @@ setup:
 	$(PYTHON) -c "from dangdang_scrapy.db import init_db; init_db()"
 	@echo ""
 	@echo "环境就绪！"
+	@echo "  make login      首次登录 (短信验证码 + Chrome Cookie 导出)"
 	@echo "  make crawl      列表抓取"
 	@echo "  make detail     评分补抓"
 	@echo "  make import     导入旧CSV (可选)"
@@ -47,6 +48,14 @@ setup:
 
 import: data/books.csv
 	$(PYTHON) scripts/import_books.py
+
+login:
+	@if [ -n "$$DISPLAY" ]; then \
+		echo "=== 检测到显示器，弹出浏览器登录 ==="; \
+		DANGDANG_USE_PLAYWRIGHT=true $(PYTHON) -m scrapy crawl dangdang_login; \
+	else \
+		$(PYTHON) scripts/import_cookies.py; \
+	fi
 
 crawl:
 	$(PYTHON) -m scrapy crawl dangdang -s JOBDIR=jobs/crawl

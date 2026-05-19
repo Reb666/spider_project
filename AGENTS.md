@@ -5,6 +5,7 @@
 | Command | What |
 |---------|------|
 | `make setup` | Docker PG up + deps + init_db |
+| `make login` | **Headed Playwright** — one-time dangdang login (SMS verification, manual); state auto-persisted to `data/playwright_data/` |
 | `make crawl` | `scrapy crawl dangdang` (listing) |
 | `make detail` | `scrapy crawl dangdang_detail` (rating backfill) |
 | `make export` | DB → `data/books.csv` |
@@ -19,11 +20,14 @@
 
 ## Architecture
 
-- **Two spiders**: `dangdang` (list pages → `BookItem`), `dangdang_detail` (detail pages → UPDATE rating/rating_people)
+- **Three spiders**: `dangdang` (list pages → `BookItem`), `dangdang_detail` (detail pages → UPDATE rating/rating_people), `dangdang_login` (one-time login)
 - **Dual mode**: `DANGDANG_USE_PLAYWRIGHT=true` switches to Playwright rendering (default: native HTTP)
+- **Login persistence**: Playwright persistent context at `data/playwright_data/` saves all browser state (cookies, localStorage, IndexedDB). `make login` once — subsequent crawls with Playwright automatically carry the login session
+- **WSL Cookie fallback**: `make login` → `scripts/import_cookies.py`. User exports cookies from Windows Chrome (`copy(document.cookie)` in Console) → paste to `data/cookies_raw.txt` → script validates and saves to `data/cookies.json`. SessionMiddleware auto-injects on all requests.
+- **SessionMiddleware** (`middlewares.py:20`): loads persisted cookies for native HTTP; detects session expiry via login check page
 - **Pipelines**: `BookCleaningPipeline` (200) → `DatabasePipeline` (300, batch upsert 1000)
 - **DB fallback**: `dangdang` spider degrades gracefully if PG unreachable; `dangdang_detail` raises
-- **Dedup**: `ON CONFLICT (detail_url) DO NOTHING` in `db.upsert_books()`
+- **Dedup**: `ON CONFLICT (detail_url) DO UPDATE SET` in `db.upsert_books()`
 - **Rating**: 0–100 scale (90 = 4.5 stars)
 - **Port**: PostgreSQL on **5433** (not 5432)
 - **`backfill_ratings.py`**: deprecated, use `scrapy crawl dangdang_detail`
