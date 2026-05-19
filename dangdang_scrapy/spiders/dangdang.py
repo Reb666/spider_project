@@ -1,5 +1,4 @@
 import os
-import re
 import scrapy
 from dotenv import load_dotenv
 from urllib.parse import urlparse, urlunparse
@@ -99,17 +98,14 @@ class DangdangSpider(scrapy.Spider):
         yield from self._follow_next(response, self.parse_promotional)
 
     def _extract_category(self, response):
-        url = response.url
-        m = re.search(r"/cp(\d{2})\.(\d{2})", url)
-        l1_id = m.group(1) if m else None
-        l2_id = m.group(2) if m else None
         l1_name = response.css("#breadcrumb a[dd_name='面包屑1级']::text").get("").strip()
         l2_name = response.css("#breadcrumb a[dd_name='面包屑2级']::text").get("").strip()
-        return l1_id, l2_id, l1_name, l2_name
+        l3_name = response.css("#breadcrumb a[dd_name='面包屑3级']::text").get("").strip()
+        return l1_name, l2_name, l3_name
 
     def _parse_standard_items(self, response):
         category = response.meta.get("category", "图书")
-        l1_id, l2_id, l1_name, l2_name = self._extract_category(response)
+        l1_name, l2_name, l3_name = self._extract_category(response)
         for book in response.css("ul.bigimg li"):
             item = BookItem()
             item["name"] = book.css("a.pic::attr(title)").get() or ""
@@ -123,16 +119,15 @@ class DangdangSpider(scrapy.Spider):
             item["sales"] = None
             item["category"] = category
             item["isbn"] = None
-            item["category_l1_id"] = l1_id
-            item["category_l2_id"] = l2_id
             item["category_l1_name"] = l1_name
             item["category_l2_name"] = l2_name
+            item["category_l3_name"] = l3_name
             if item["name"] and item["detail_url"]:
                 yield item
 
     def _parse_promo_items(self, response):
         category = response.meta.get("category", "图书")
-        l1_id, l2_id, l1_name, l2_name = self._extract_category(response)
+        l1_name, l2_name, l3_name = self._extract_category(response)
         for book in response.css("div.cloth_good_sort li"):
             item = BookItem()
             item["name"] = book.css("a.name::text").get("").strip() or None
@@ -146,10 +141,9 @@ class DangdangSpider(scrapy.Spider):
             item["sales"] = None
             item["category"] = category
             item["isbn"] = None
-            item["category_l1_id"] = l1_id
-            item["category_l2_id"] = l2_id
             item["category_l1_name"] = l1_name
             item["category_l2_name"] = l2_name
+            item["category_l3_name"] = l3_name
             if item["name"] and item["detail_url"]:
                 yield item
 

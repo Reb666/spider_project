@@ -64,9 +64,11 @@ class DangdangDetailSpider(scrapy.Spider):
         if rating is None and people is None:
             self.no_rating += 1
         isbn = parse_isbn(response.text)
-        l1_name = response.css("#detail-category-path a:first-child::text").get("").strip() or None
-        l2_name = response.css("#detail-category-path a:nth-child(3)::text").get("").strip() or None
-        self._batch.append((bid, rating, people, isbn, l1_name, l2_name))
+        cat_a = response.css("#detail-category-path a::text")
+        l1_name = cat_a[0].get("").strip() if len(cat_a) > 0 else None
+        l2_name = cat_a[1].get("").strip() if len(cat_a) > 1 else None
+        l3_name = cat_a[2].get("").strip() if len(cat_a) > 2 else None
+        self._batch.append((bid, rating, people, isbn, l1_name, l2_name, l3_name))
         if len(self._batch) >= 100:
             self._flush()
 
@@ -79,15 +81,16 @@ class DangdangDetailSpider(scrapy.Spider):
         if not self._batch:
             return
         with self.engine.begin() as conn:
-            for bid, rating, people, isbn, l1_name, l2_name in self._batch:
+            for bid, rating, people, isbn, l1_name, l2_name, l3_name in self._batch:
                 conn.execute(
                     text("""UPDATE books SET
                         rating=:r, rating_people=:p,
                         isbn=COALESCE(:isbn, books.isbn),
                         category_l1_name=COALESCE(:l1, books.category_l1_name),
-                        category_l2_name=COALESCE(:l2, books.category_l2_name)
+                        category_l2_name=COALESCE(:l2, books.category_l2_name),
+                        category_l3_name=COALESCE(:l3, books.category_l3_name)
                     WHERE id=:id"""),
-                    {"r": rating, "p": people, "isbn": isbn, "l1": l1_name, "l2": l2_name, "id": bid},
+                    {"r": rating, "p": people, "isbn": isbn, "l1": l1_name, "l2": l2_name, "l3": l3_name, "id": bid},
                 )
         self.updated += len(self._batch)
         self._batch = []

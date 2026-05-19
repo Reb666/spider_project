@@ -14,7 +14,7 @@ class BookCleaningPipeline:
         for field in ("name", "author", "publisher", "isbn"):
             if item.get(field):
                 item[field] = item[field].strip()
-        for field in ("category_l1_name", "category_l2_name"):
+        for field in ("category_l1_name", "category_l2_name", "category_l3_name"):
             if item.get(field):
                 item[field] = item[field].strip()
         return item
@@ -54,6 +54,11 @@ class DatabasePipeline:
     def _flush(self, spider):
         if not self.items:
             return
+        import math
+        for d in self.items:
+            for k, v in d.items():
+                if v is not None and isinstance(v, float) and (v != v or math.isinf(v)):
+                    d[k] = None
         df = pd.DataFrame(self.items).drop_duplicates(subset=["detail_url"])
         self.items = []
         before = len(df)

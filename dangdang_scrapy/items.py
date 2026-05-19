@@ -13,7 +13,6 @@ class BookItem(scrapy.Item):
     detail_url = scrapy.Field()
     category = scrapy.Field()
     isbn = scrapy.Field()
-    category_l1_id = scrapy.Field()
-    category_l2_id = scrapy.Field()
     category_l1_name = scrapy.Field()
     category_l2_name = scrapy.Field()
+    category_l3_name = scrapy.Field()
