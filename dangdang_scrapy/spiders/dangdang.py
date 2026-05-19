@@ -47,8 +47,8 @@ class DangdangSpider(scrapy.Spider):
 
     # 带筛选时连续空页上限（避免无限制翻页）
     MAX_EMPTY_PAGES = 3
-    # 单次爬取最大翻页数（防止无限制爬取）
-    MAX_PAGES = 100
+    # 每个分类最大翻页数（防止无限制爬取）
+    MAX_PAGES_PER_CATEGORY = 50
 
     def __init__(self, name_filter=None, author_filter=None, publisher_filter=None,
                  rating_min=None, rating_max=None, price_min=None, price_max=None,
@@ -64,7 +64,6 @@ class DangdangSpider(scrapy.Spider):
         self.people_min = int(people_min) if people_min else None
         self.max_items = int(max_items) if max_items else None
         self._scraped_count = 0
-        self._page_count = 0
         self._consecutive_empty = 0
 
     def _has_active_filters(self):
@@ -79,11 +78,10 @@ class DangdangSpider(scrapy.Spider):
     def _limit_reached(self):
         return self.max_items and self._scraped_count >= self.max_items
 
-    def _should_follow_next(self, found_on_page):
-        """判断是否应该继续翻到下一页"""
+    def _should_follow_next(self, found_on_page, page_in_category):
         if self._limit_reached():
             return False
-        if self._page_count >= self.MAX_PAGES:
+        if page_in_category >= self.MAX_PAGES_PER_CATEGORY:
             return False
         if self._has_active_filters():
             if not found_on_page:
@@ -156,22 +154,22 @@ class DangdangSpider(scrapy.Spider):
             )
 
     def parse_standard(self, response):
-        self._page_count += 1
+        page = response.meta.get("_page", 1)
         found = False
         for item in self._parse_standard_items(response):
             found = True
             yield item
-        if self._should_follow_next(found):
-            yield from self._follow_next(response, self.parse_standard)
+        if self._should_follow_next(found, page):
+            yield from self._follow_next(response, self.parse_standard, page + 1)
 
     def parse_promotional(self, response):
-        self._page_count += 1
+        page = response.meta.get("_page", 1)
         found = False
         for item in self._parse_promo_items(response):
             found = True
             yield item
-        if self._should_follow_next(found):
-            yield from self._follow_next(response, self.parse_promotional)
+        if self._should_follow_next(found, page):
+            yield from self._follow_next(response, self.parse_promotional, page + 1)
 
     def _parse_standard_items(self, response):
         category = response.meta.get("category", "图书")
@@ -213,12 +211,16 @@ class DangdangSpider(scrapy.Spider):
                 self._scraped_count += 1
                 yield item
 
-    def _follow_next(self, response, callback):
+    def _follow_next(self, response, callback, next_page_num):
         next_page = response.css("li.next a::attr(href), a.next::attr(href)").get()
         if next_page and next_page not in ("javascript:;", "#"):
             next_url = response.urljoin(next_page)
             yield scrapy.Request(
                 url=next_url,
                 callback=callback,
-                meta={"category": response.meta.get("category", "图书"), **_request_meta()},
+                meta={
+                    "category": response.meta.get("category", "图书"),
+                    "_page": next_page_num,
+                    **_request_meta(),
+                },
             )

@@ -72,8 +72,6 @@ def crawl_start():
         ]
         if item_count > 0:
             cmd += ["-a", f"max_items={item_count}"]
-            # Scrapy 内置安全网：双重保险防止爬取数量超标
-            cmd += ["-s", f"CLOSESPIDER_ITEMCOUNT={item_count}"]
 
         # 传递筛选参数给 spider
         for key in ("name_filter", "author_filter", "publisher_filter",
@@ -369,10 +367,10 @@ def api_stats():
         if total == 0:
             return jsonify({"ok": True, "total": 0})
 
-        # 评分分布: 10 档（price=price 排除 NaN，NaN 永远不等于自身）
+        # 评分分布: 10 档
         rating_rows = conn.execute(text("""
             SELECT width_bucket(rating, 0, 100, 10) AS bucket, COUNT(*)::int
-            FROM books WHERE rating IS NOT NULL AND rating > 0 AND rating = rating
+            FROM books WHERE rating IS NOT NULL AND rating > 0 AND rating::text != 'NaN'
             GROUP BY bucket ORDER BY bucket
         """)).all()
         rating_buckets = [
@@ -385,7 +383,7 @@ def api_stats():
         # 价格分布: 20 档
         price_rows = conn.execute(text("""
             SELECT width_bucket(price, 0, 200, 20) AS bucket, COUNT(*)::int
-            FROM books WHERE price IS NOT NULL AND price > 0 AND price = price
+            FROM books WHERE price IS NOT NULL AND price > 0 AND price::text != 'NaN'
             GROUP BY bucket ORDER BY bucket
         """)).all()
         price_buckets = [
@@ -407,7 +405,7 @@ def api_stats():
         scatter_rows = conn.execute(text("""
             SELECT price, rating FROM books
             WHERE price IS NOT NULL AND rating IS NOT NULL AND rating > 0
-              AND price = price AND rating = rating
+              AND price::text != 'NaN' AND rating::text != 'NaN'
             ORDER BY RANDOM() LIMIT 3000
         """)).all()
         scatter = [{"price": float(r[0]), "rating": float(r[1])} for r in scatter_rows if r[0] and r[1]]

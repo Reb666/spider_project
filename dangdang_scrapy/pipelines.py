@@ -55,6 +55,8 @@ class DatabasePipeline:
         self.items = []
         before = len(df)
         df = df.dropna(subset=["detail_url"])
+        # pandas 会把 None 转成 NaN，需要转回 None 才能正确写入 PostgreSQL NULL
+        df = df.where(pd.notna(df), None)
         if not df.empty:
             upsert_books(df)
         spider.logger.info(f"Saved {len(df)} books ({before - len(df)} duplicates/empty skipped)")
