@@ -64,14 +64,10 @@ class DangdangDetailSpider(scrapy.Spider):
         if rating is None and people is None:
             self.no_rating += 1
         isbn = parse_isbn(response.text)
-        cat_texts = response.css("#detail-category-path a::text")
-        l1_name = cat_texts.get("").strip() if cat_texts else None
-        l2_name = None
-        l3_name = None
-        if len(cat_texts) > 1:
-            l2_name = cat_texts[1].get().strip()
-        if len(cat_texts) > 2:
-            l3_name = cat_texts[2].get().strip()
+        cat_texts = response.css("#detail-category-path a::text").getall()
+        l1_name = cat_texts[1].strip() if len(cat_texts) > 1 else None
+        l2_name = cat_texts[2].strip() if len(cat_texts) > 2 else None
+        l3_name = cat_texts[3].strip() if len(cat_texts) > 3 else None
         self._batch.append((bid, rating, people, isbn, l1_name, l2_name, l3_name))
         if len(self._batch) >= 100:
             self._flush()

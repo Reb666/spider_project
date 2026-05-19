@@ -63,6 +63,8 @@ class DangdangSpider(scrapy.Spider):
 
     def parse_l2_list(self, response):
         """Discover all second-level categories from breadcrumb, then crawl each."""
+        cats = self._get_breadcrumb(response)
+        top_level = cats[0].strip() if cats else "图书"
         list_products = response.css("#breadcrumb .select_frame > .list_product")
         if not list_products:
             self.logger.warning("No category dropdown found, falling back to direct parse")
@@ -70,7 +72,6 @@ class DangdangSpider(scrapy.Spider):
             return
 
         # First list_product = all l2 categories
-        l1_name = response.css("#breadcrumb a[dd_name='面包屑1级']::text").get("").strip() or "图书"
         for a in list_products[0].css("a"):
             href = a.attrib.get("href", "")
             if "/cp" not in href:
@@ -83,7 +84,7 @@ class DangdangSpider(scrapy.Spider):
             yield scrapy.Request(
                 url=url,
                 callback=self.parse_l3_list,
-                meta={"category": l1_name, "l2_name": l2_name, **_request_meta()},
+                meta={"category": top_level, "l2_name": l2_name, **_request_meta()},
             )
 
     def parse_l3_list(self, response):
@@ -131,9 +132,8 @@ class DangdangSpider(scrapy.Spider):
             )
 
     def parse_category(self, response):
-        l1_name = response.meta.get("category", "图书")
-        l2_name = response.meta.get("l2_name", "")
-        l3_name = response.meta.get("l3_name", "")
+        cats = self._get_breadcrumb(response)
+        l1_name, l2_name, l3_name = self._breadcrumb_to_levels(cats)
         scraped = response.meta.get("scraped", 0)
         limit = _MAX_PER_L3
 
@@ -167,6 +167,19 @@ class DangdangSpider(scrapy.Spider):
             yield from self._parse_standard_items(response, l1_name, l2_name, l3_name, books)
         else:
             yield from self._parse_promo_items(response, l1_name, l2_name, l3_name)
+
+    def _get_breadcrumb(self, response):
+        """Extract full breadcrumb from listing page (trail only, no dropdown peers)."""
+        return response.css(
+            "#breadcrumb .crumbs_fb_left > .select_frame > a[name='breadcrumb-category']::text"
+        ).getall()
+
+    def _breadcrumb_to_levels(self, cats):
+        """Map breadcrumb -> (l1_name, l2_name, l3_name). category (=cats[0]) is stored separately."""
+        l1 = cats[1].strip() if len(cats) > 1 else None
+        l2 = cats[2].strip() if len(cats) > 2 else None
+        l3 = cats[3].strip() if len(cats) > 3 else None
+        return l1, l2, l3
 
     def _parse_standard_items(self, response, l1_name, l2_name, l3_name, books=None):
         if books is None:
