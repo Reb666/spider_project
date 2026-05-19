@@ -1,4 +1,6 @@
-# dangdang_scrapy — 当当图书爬虫项目
+# dangdang_scrapy — 当当图书爬虫项目（Linux / macOS）
+
+> **Windows 用户请参阅 [README_WINDOWS.md](README_WINDOWS.md)**
 
 基于 Scrapy + PostgreSQL 的当当网图书数据采集与分析系统。支持**原生 HTTP**（默认）和 **Playwright**（可选）双模式渲染引擎。
 
@@ -10,7 +12,8 @@ dangdang_scrapy/
 ├── Makefile                  # 一键命令入口 (自动识别 Conda 环境)
 ├── requirements.txt          # Python 依赖
 ├── .env.example              # 环境变量模板
-├── README.md
+├── README_LINUX.md           # Linux/macOS 教程（本文件）
+├── README_WINDOWS.md         # Windows 教程
 ├── data/                     # CSV 导出产物
 │   ├── books.csv             # 初始样本数据 (git 跟踪)
 ├── scripts/
@@ -60,17 +63,93 @@ cp .env.example .env
 # 2. 一键初始化 (Docker + Python 依赖 + 建库)
 make setup
 
-# 3. 数据采集
-make crawl      # 列表页抓取
-make detail     # 详情页评分补抓
+# 3. 数据采集（数据写入 PostgreSQL）
+make crawl      # 列表页抓取 → PostgreSQL + jobs/crawl/
+make detail     # 详情页评分补抓 → PostgreSQL
 
 # 4. 导出与分析
-make export     # 数据库 → CSV
-make analyze    # 可视化图表
-make quality    # 数据质量报告
-make verify-fast  # 快速验证（依赖数据库可连接）
-make verify-e2e   # 端到端验证（需数据库已有有效数据）
+make export     # PostgreSQL → data/books.csv
+make analyze    # 可视化图表 → analysis/*.png（4 张）
+make quality    # 数据质量报告 → 控制台输出
+make verify-fast  # 快速验证 → 控制台输出（依赖数据库可连接）
+make verify-e2e   # 端到端验证 → 控制台输出（需数据库已有有效数据）
 ```
+
+```
+
+---
+
+## 如何查看数据库
+
+数据存储在 Docker 容器内的 PostgreSQL 中。以下几种方式都可以查看：
+
+### 方式一：命令行 psql（最快捷）
+
+```bash
+make psql
+# 或直接:
+docker compose exec postgres psql -U dangdang -d dangdang_books
+```
+
+进入 psql 后常用命令：
+
+```sql
+-- 查看总条数
+SELECT COUNT(*) FROM books;
+
+-- 查看最近 10 条
+SELECT id, name, price, rating, detail_url FROM books ORDER BY id DESC LIMIT 10;
+
+-- 查看某个字段的统计
+SELECT ROUND(AVG(rating)::numeric, 1) AS 均分, MAX(price) AS 最高价 FROM books;
+
+-- 退出
+\q
+```
+
+### 方式二：Python 一行查询
+
+```bash
+conda activate dangdang_scrapy
+python -c "from dangdang_scrapy.db import get_engine; from sqlalchemy import text; import pandas as pd; e=get_engine(); df=pd.read_sql('SELECT * FROM books ORDER BY id DESC LIMIT 10', e); print(df.to_string())"
+```
+
+### 方式三：VS Code PostgreSQL 插件（最方便，已在编辑器中）
+
+**安装 & 连接步骤：**
+
+1. 打开 VS Code 扩展市场（`Ctrl+Shift+X`），搜索 **PostgreSQL**，安装 `ms-ossdata.vscode-postgresql`
+
+2. 安装后左侧会出现数据库图标（圆筒形），点击 → **Create Connection**
+
+3. 填入连接参数：
+
+   | 字段 | 值 |
+   |------|-----|
+   | Name | `dangdang_books`（随意起名） |
+   | Host | `localhost` |
+   | Port | `5433` |
+   | Username | `dangdang` |
+   | Password | `dangdang` |
+   | The database to connect to... | 留空即可（留空会列出所有数据库，填入 `dangdang_books` 则直接进入） |
+   | Connection String | 不填 |
+
+4. 点击 **Connect**，连接成功后展开 `dangdang_books` → `Tables` → `books` → 右键 → **Select Top 1000**，即可浏览数据
+
+5. 也可右键数据库 → **New Query**，直接写 SQL 查询
+
+> 连接参数来自 `.env` 中的 `DATABASE_URL`：`postgresql+psycopg2://dangdang:dangdang@localhost:5433/dangdang_books`
+
+### 方式四：其他图形化工具
+
+| 工具 | 下载 | 特点 |
+|------|------|------|
+| DBeaver（免费） | https://dbeaver.io/download/ | 功能最全，支持多种数据库 |
+| pgAdmin 4 | https://www.pgadmin.org/download/ | PostgreSQL 官方工具 |
+
+连接参数与上方 VS Code 插件完全一致。
+
+---
 
 ## 环境变量
 
@@ -109,7 +188,7 @@ make verify-e2e   # 端到端验证（需数据库已有有效数据）
 
 ## 质量指标
 
-`make quality` 输出示例：
+`make quality` 输出示例（纯控制台输出，不产生文件）：
 
 ```
 采集总条数: 8599
@@ -123,12 +202,12 @@ name 非空率: 7694/8599 (89.5%)
 
 ## 验证命令
 
-| 命令 | 说明 |
-|------|------|
-| `make verify-fast` | fixture测试 + 导出 + 分析冒烟（依赖数据库可连接） |
-| `make verify-e2e` | verify-fast + 运行时断言（需数据库有数据） |
-| `make test-full` | 在独立 `_test` 库运行全部集成测试 |
-| `pytest -m "not integration"` | 只跑单元测试 |
+| 命令 | 说明 | 数据产出 |
+|------|------|---------|
+| `make verify-fast` | fixture测试 + 导出 + 分析冒烟（依赖数据库可连接） | 控制台 + `data/books.csv` + `analysis/*.png` |
+| `make verify-e2e` | verify-fast + 运行时断言（需数据库有数据） | 控制台 |
+| `make test-full` | 在独立 `_test` 库运行全部集成测试 | 控制台 |
+| `pytest -m "not integration"` | 只跑单元测试 | 控制台 |
 
 ## 开发者指南
 

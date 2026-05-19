@@ -60,7 +60,7 @@ def upsert_books(df: pd.DataFrame, batch_size: int = 100):
     df = df.copy()
     for col in ("rating_people", "sales"):
         if col in df.columns:
-            df[col] = df[col].where(pd.notna(df[col]), None)
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
     with engine.begin() as conn:
         for start in range(0, len(df), batch_size):
             batch = df.iloc[start:start + batch_size]
