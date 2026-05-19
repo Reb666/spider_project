@@ -38,6 +38,10 @@ class DangdangDetailSpider(scrapy.Spider):
         self._total_urls = 0
         self._processed = 0
 
+    async def start(self):
+        for req in self.start_requests():
+            yield req
+
     def start_requests(self):
         urls = self._fetch_pending()
         self._total_urls = len(urls)

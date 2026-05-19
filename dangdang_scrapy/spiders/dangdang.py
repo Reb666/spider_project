@@ -141,6 +141,10 @@ class DangdangSpider(scrapy.Spider):
         ("cp01.07.01.00.00.00.html", "促销"),
     ]
 
+    async def start(self):
+        for req in self.start_requests():
+            yield req
+
     def start_requests(self):
         for path, layout in self.start_urls:
             if self._limit_reached():

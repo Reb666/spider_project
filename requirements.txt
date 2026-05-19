@@ -1,4 +1,4 @@
-scrapy>=2.10,<2.13
+scrapy>=2.10
 scrapy-playwright
 playwright
 pandas
