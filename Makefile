@@ -25,7 +25,7 @@ define wait_pg
 	@sleep 1
 endef
 
-.PHONY: setup crawl detail export analyze verify-fast verify-e2e quality test-full reset-db
+.PHONY: setup crawl detail export analyze verify-fast verify-e2e quality test-full reset-db web
 
 setup:
 	$(PIP) install -r requirements.txt
@@ -98,6 +98,9 @@ reset-db:
 	docker compose up -d
 	$(call wait_pg)
 	$(PYTHON) -c "from dangdang_scrapy.db import init_db; init_db()"
+
+web:
+	$(PYTHON) web/app.py
 
 psql:
 	docker compose exec postgres psql -U $(PG_USER) -d $(PG_DB)

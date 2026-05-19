@@ -20,6 +20,10 @@ dangdang_scrapy/
 │   ├── init_db.sql           # 建表 DDL (容器首次启动自动执行)
 │   ├── export_books.py       # 数据库 → CSV
 │   └── import_books.py       # CSV → 数据库
+├── web/                       # Web 控制面板
+│   ├── app.py                 # Flask 应用
+│   └── templates/
+│       └── index.html         # 控制面板页面
 ├── tests/
 │   ├── test_parsers.py
 │   ├── test_spiders.py
@@ -71,6 +75,7 @@ make detail     # 详情页评分补抓 → PostgreSQL
 make export     # PostgreSQL → data/books.csv
 make analyze    # 可视化图表 → analysis/*.png（4 张）
 make quality    # 数据质量报告 → 控制台输出
+make web        # 启动 Web 控制面板 → http://127.0.0.1:5000
 make verify-fast  # 快速验证 → 控制台输出（依赖数据库可连接）
 make verify-e2e   # 端到端验证 → 控制台输出（需数据库已有有效数据）
 ```
@@ -148,6 +153,32 @@ python -c "from dangdang_scrapy.db import get_engine; from sqlalchemy import tex
 | pgAdmin 4 | https://www.pgadmin.org/download/ | PostgreSQL 官方工具 |
 
 连接参数与上方 VS Code 插件完全一致。
+
+---
+
+## Web 控制面板
+
+项目内置了一个 Web 界面，可以在浏览器中控制爬虫、筛选数据和查看可视化图表。
+
+### 启动
+
+```bash
+conda activate dangdang_scrapy
+python web/app.py
+```
+
+启动后浏览器打开 **http://127.0.0.1:5000**。
+
+### 功能介绍
+
+| 模块 | 说明 |
+|------|------|
+| 爬虫控制 | 设置抓取条数 → 点击「列表抓取」或「详情补抓」→ 实时显示运行状态 |
+| 数据表格 | 浏览所有采集数据，支持分页 |
+| 筛选条件 | 按书名/作者/出版社（模糊搜索）、评分区间、价格区间、评论人数筛选 |
+| 排序 | 点击表头「价格」「评分」「评论数」可升降序排列 |
+| 图表 | ECharts 渲染：评分分布、价格分布、出版社 Top10、价格 vs 评分散点图 |
+| 导出 | 点击「导出 CSV」下载当前筛选结果为 CSV |
 
 ---
 

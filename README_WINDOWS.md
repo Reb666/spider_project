@@ -19,6 +19,10 @@ dangdang_scrapy/
 │   ├── init_db.sql           # 建表 DDL（容器首次启动自动执行）
 │   ├── export_books.py       # 数据库 → CSV
 │   └── import_books.py       # CSV → 数据库
+├── web/                       # Web 控制面板
+│   ├── app.py                 # Flask 应用
+│   └── templates/
+│       └── index.html         # 控制面板页面
 ├── tests/
 │   ├── test_parsers.py
 │   ├── test_spiders.py
@@ -54,6 +58,17 @@ dangdang_scrapy/
 | Git Bash（推荐） | `winget install Git.Git` |
 
 所有终端命令在 **Git Bash** 中执行。
+
+> **PowerShell 用户注意**：`PYTHONPATH=.` 是 Bash 语法，PowerShell 中需写成 `$env:PYTHONPATH="."`。例如：
+> ```powershell
+> # PowerShell
+> $env:PYTHONPATH="." ; python web/app.py
+> ```
+> ```bash
+> # Git Bash（推荐）
+> PYTHONPATH=. python web/app.py
+> ```
+> 下文中所有 `PYTHONPATH=.` 开头的命令都遵循此规则。
 
 ---
 
@@ -297,6 +312,38 @@ PYTHONPATH=. python analysis/visualize.py --csv data/books.csv
 
 ---
 
+## Web 控制面板
+
+项目内置了一个 Web 界面，可以在浏览器中控制爬虫、筛选数据和查看可视化图表。
+
+### 启动
+
+```bash
+# Git Bash（推荐）
+conda activate dangdang_scrapy
+PYTHONPATH=. python web/app.py
+```
+```powershell
+# PowerShell
+conda activate dangdang_scrapy
+$env:PYTHONPATH="." ; python web/app.py
+```
+
+启动后浏览器打开 **http://127.0.0.1:5000**。
+
+### 功能介绍
+
+| 模块 | 说明 |
+|------|------|
+| 爬虫控制 | 设置抓取条数 → 点击「列表抓取」或「详情补抓」→ 实时显示运行状态 |
+| 数据表格 | 浏览所有采集数据，支持分页 |
+| 筛选条件 | 按书名/作者/出版社（模糊搜索）、评分区间、价格区间、评论人数筛选 |
+| 排序 | 点击表头「价格」「评分」「评论数」可升降序排列 |
+| 图表 | ECharts 渲染：评分分布、价格分布、出版社 Top10、价格 vs 评分散点图 |
+| 导出 | 点击「导出 CSV」下载当前筛选结果为 CSV |
+
+---
+
 ## 验证与测试
 
 ### 运行单元测试
@@ -339,6 +386,7 @@ TEST_DATABASE_URL=postgresql+psycopg2://dangdang:dangdang@localhost:5433/dangdan
 | `make verify-fast` | `pytest tests/ -v -m "not integration"` | 控制台输出 |
 | `make test-full` | 见上方"运行集成测试" | 控制台输出 |
 | `make reset-db` | `docker compose down -v && docker compose up -d` 然后重新 `init_db()` | 清空数据库 |
+| `make web` | `PYTHONPATH=. python web/app.py` | Web 控制面板 → http://127.0.0.1:5000 |
 | `make psql` | `docker compose exec postgres psql -U dangdang -d dangdang_books` | 交互式 SQL 终端 |
 
 ---
