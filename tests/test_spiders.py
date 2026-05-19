@@ -19,7 +19,7 @@ class TestStandardPageParsing:
             "http://category.dangdang.com/cp01.01.02.00.00.00.html",
             {"category": "图书"})
         spider = DangdangSpider()
-        items = list(spider._parse_standard_items(resp))
+        items = list(spider._parse_standard_items(resp, "图书", "青春文学", "青春爱情文学"))
         assert len(items) == 60
         assert all(i["name"] for i in items)
         assert all(i["detail_url"] for i in items)
@@ -30,21 +30,33 @@ class TestStandardPageParsing:
             "http://category.dangdang.com/cp01.01.02.00.00.00.html",
             {"category": "图书"})
         spider = DangdangSpider()
-        items = list(spider._parse_standard_items(resp))
-        # No jump.php links should survive
+        items = list(spider._parse_standard_items(resp, "图书", "青春文学", "青春爱情文学"))
         assert not any("jump.php" in (i["detail_url"] or "") for i in items)
 
-    def test_pagination_yielded(self):
+    def test_category_names_set(self):
         from dangdang_scrapy.spiders.dangdang import DangdangSpider
         resp = _make_response("standard_page.html",
             "http://category.dangdang.com/cp01.01.02.00.00.00.html",
             {"category": "图书"})
         spider = DangdangSpider()
-        results = list(spider.parse_standard(resp))
-        items = [r for r in results if hasattr(r, "fields")]
-        requests = [r for r in results if hasattr(r, "url")]
+        items = list(spider._parse_standard_items(resp, "图书", "青春文学", "青春爱情文学"))
         assert len(items) > 0
-        assert len(requests) > 0  # yield from works
+        assert items[0]["category_l1_name"] == "图书"
+        assert items[0]["category_l2_name"] == "青春文学"
+        assert items[0]["category_l3_name"] == "青春爱情文学"
+
+    def test_pagination_yielded(self):
+        from dangdang_scrapy.spiders.dangdang import DangdangSpider
+        resp = _make_response("standard_page.html",
+            "http://category.dangdang.com/cp01.01.02.00.00.00.html",
+            {"category": "图书", "scraped": 0, "l2_name": "青春文学", "l3_name": "青春爱情文学"})
+        spider = DangdangSpider()
+        results = list(spider.parse_category(resp))
+        items = [r for r in results if hasattr(r, "fields")]
+        # With 60 items on page but limit 50, should yield 50 items and no next-page
+        assert len(items) == 50
+        assert all(i["category_l2_name"] == "青春文学" for i in items)
+        assert all(i["category_l3_name"] == "青春爱情文学" for i in items)
 
 
 class TestPromoPageParsing:
@@ -54,7 +66,7 @@ class TestPromoPageParsing:
             "http://category.dangdang.com/cp01.02.01.00.00.00.html",
             {"category": "图书"})
         spider = DangdangSpider()
-        items = list(spider._parse_promo_items(resp))
+        items = list(spider._parse_promo_items(resp, "图书", "", ""))
         assert len(items) > 50
         assert all(i["name"] for i in items)
 
@@ -64,7 +76,7 @@ class TestPromoPageParsing:
             "http://category.dangdang.com/cp01.02.01.00.00.00.html",
             {"category": "图书"})
         spider = DangdangSpider()
-        items = list(spider._parse_promo_items(resp))
+        items = list(spider._parse_promo_items(resp, "图书", "", ""))
         assert not any("jump.php" in (i["detail_url"] or "") for i in items)
 
 
