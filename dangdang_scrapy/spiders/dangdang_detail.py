@@ -31,10 +31,9 @@ class DangdangDetailSpider(scrapy.Spider):
         self.no_rating = 0
         self._batch = []
 
-    def start(self):
+    async def start(self):
         urls = self._fetch_pending()
         self.logger.info(f"Fetched {len(urls)} URLs")
-        requests = []
         for bid, detail_url in urls:
             meta = {"id": bid, "detail_url": detail_url}
             if USE_PW:
@@ -47,8 +46,7 @@ class DangdangDetailSpider(scrapy.Spider):
                     PageMethod("wait_for_selector", "#comm_num_down, span.star", timeout=5000),
                     PageMethod("wait_for_timeout", 500),
                 ]
-            requests.append(scrapy.Request(url=detail_url, callback=self.parse, meta=meta, errback=self.on_error))
-        return requests
+            yield scrapy.Request(url=detail_url, callback=self.parse, meta=meta, errback=self.on_error)
 
     def _fetch_pending(self):
         sql = """SELECT id, detail_url FROM books

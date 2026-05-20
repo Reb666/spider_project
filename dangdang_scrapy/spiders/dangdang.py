@@ -1,4 +1,6 @@
 import os
+import re
+import json
 import scrapy
 from dotenv import load_dotenv
 from urllib.parse import urlparse, urlunparse
@@ -62,7 +64,7 @@ class DangdangSpider(scrapy.Spider):
         )
 
     def parse_l2_list(self, response):
-        """Discover all second-level categories from breadcrumb, then crawl each."""
+        """Discover all l2 categories from breadcrumb AND l3 categories from JS."""
         cats = self._get_breadcrumb(response)
         top_level = cats[0].strip() if cats else "图书"
         list_products = response.css("#breadcrumb .select_frame > .list_product")
@@ -87,6 +89,38 @@ class DangdangSpider(scrapy.Spider):
                 meta={"category": top_level, "l2_name": l2_name, **_request_meta()},
             )
 
+        # Also discover l3 from category JS file
+        yield scrapy.Request(
+            url="http://static.dangdang.com/js/header2012/categorydata_new.js?20251111",
+            callback=self._parse_category_js,
+            meta={"category": top_level, **_request_meta()},
+            priority=-1,
+        )
+
+    def _parse_category_js(self, response):
+        """Parse l3 category URLs from the JS category file."""
+        m = re.search(r"category#dd#(cp\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.html)", response.text)
+        if not m:
+            return
+        top = response.meta.get("category", "图书")
+        urls = set(re.findall(r"category#dd#(cp\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.html)", response.text))
+        for u in urls:
+            parts = u.replace("cp", "").replace(".html", "").split(".")
+            l2_code = f"{parts[0]}.{parts[1]}"
+            l3_code = parts[2]
+            if l3_code == "00":
+                continue
+            url = f"http://category.dangdang.com/{u}"
+            key = (l2_code, l3_code)
+            if key in self._seen_l3:
+                continue
+            self._seen_l3.add(key)
+            yield scrapy.Request(
+                url=url,
+                callback=self.parse_category,
+                meta={"category": top, "scraped": 0, **_request_meta()},
+            )
+
     def parse_l3_list(self, response):
         """Discover third-level categories from breadcrumb, or parse items directly."""
         l2_name = response.meta.get("l2_name", "")
@@ -94,14 +128,17 @@ class DangdangSpider(scrapy.Spider):
 
         if len(list_products) >= 2:
             # Second list_product = l3 categories under this l2
-            l1_name = response.meta.get("category", "图书")
+            top = response.meta.get("category", "图书")
+            # Get actual l2 name from current page's breadcrumb
+            page_cats = self._get_breadcrumb(response)
+            actual_l2 = page_cats[1].strip() if len(page_cats) > 1 else response.meta.get("l2_name", "")
             for a in list_products[1].css("a"):
                 href = a.attrib.get("href", "")
                 if "/cp" not in href:
                     continue
                 l3_name = a.attrib.get("title", a.css("::text").get("")).strip()
                 url = response.urljoin(href)
-                key = (l2_name, l3_name)
+                key = (actual_l2, l3_name)
                 if key in self._seen_l3:
                     continue
                 self._seen_l3.add(key)
@@ -109,9 +146,7 @@ class DangdangSpider(scrapy.Spider):
                     url=url,
                     callback=self.parse_category,
                     meta={
-                        "category": l1_name,
-                        "l2_name": l2_name,
-                        "l3_name": l3_name,
+                        "category": top,
                         "scraped": 0,
                         **_request_meta(),
                     },
