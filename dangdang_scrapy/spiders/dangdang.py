@@ -8,7 +8,7 @@ from dangdang_scrapy.session import get_user_data_dir
 
 load_dotenv()
 USE_PW = os.environ.get("DANGDANG_USE_PLAYWRIGHT", "").lower() in ("1", "true", "yes")
-_MAX_PER_L3 = 50
+_MAX_PER_L3 = 10
 
 
 def _normalize_url(raw, response):
@@ -54,7 +54,7 @@ class DangdangSpider(scrapy.Spider):
         self._seen_l2 = set()
         self._seen_l3 = set()
 
-    def start_requests(self):
+    async def start(self):
         yield scrapy.Request(
             url="http://category.dangdang.com/cp01.01.01.00.00.00.html",
             callback=self.parse_l2_list,

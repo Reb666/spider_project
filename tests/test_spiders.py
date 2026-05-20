@@ -53,8 +53,8 @@ class TestStandardPageParsing:
         spider = DangdangSpider()
         results = list(spider.parse_category(resp))
         items = [r for r in results if hasattr(r, "fields")]
-        # With 60 items on page but limit 50, should yield 50 items and no next-page
-        assert len(items) == 50
+        # With 60 items on page but limit 10, should yield 10 items
+        assert len(items) == 10
         assert all(i["category_l2_name"] == "青春爱情文学" for i in items)
         assert all(i["category_l3_name"] is None for i in items)
 

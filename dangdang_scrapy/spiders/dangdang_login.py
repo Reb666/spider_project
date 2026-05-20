@@ -19,21 +19,23 @@ class DangdangLoginSpider(scrapy.Spider):
         "PLAYWRIGHT_LAUNCH_OPTIONS": {"headless": False},
     }
 
-    def start_requests(self):
-        yield scrapy.Request(
-            url="https://login.dangdang.com/",
-            callback=self.parse_login,
-            meta={
-                "playwright": True,
-                "playwright_context_kwargs": {
-                    "user_data_dir": str(get_user_data_dir()),
-                    "headless": False,
-                    "viewport": {"width": 1920, "height": 1080},
+    def start(self):
+        return [
+            scrapy.Request(
+                url="https://login.dangdang.com/",
+                callback=self.parse_login,
+                meta={
+                    "playwright": True,
+                    "playwright_context_kwargs": {
+                        "user_data_dir": str(get_user_data_dir()),
+                        "headless": False,
+                        "viewport": {"width": 1920, "height": 1080},
+                    },
+                    "playwright_include_page": True,
                 },
-                "playwright_include_page": True,
-            },
-            errback=self.on_error,
-        )
+                errback=self.on_error,
+            )
+        ]
 
     async def parse_login(self, response):
         page = response.meta["playwright_page"]
